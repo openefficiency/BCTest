@@ -1,0 +1,166 @@
+---
+# Copyright information
+# These are standard boilerplate notes for Hyperledger Fabric
+# ===========================================================
+# This configtx.yaml file is for the whistleblower application
+# It defines the organizations, capabilities, policies, and channel 
+# configurations for the Hyperledger Fabric network
+
+Organizations:
+    - &OrdererOrg
+        Name: OrdererOrg
+        ID: OrdererMSP
+        MSPDir: organizations/ordererOrganizations/example.com/msp
+        Policies:
+            Readers:
+                Type: Signature
+                Rule: "OR('OrdererMSP.member')"
+            Writers:
+                Type: Signature
+                Rule: "OR('OrdererMSP.member')"
+            Admins:
+                Type: Signature
+                Rule: "OR('OrdererMSP.admin')"
+        OrdererEndpoints:
+            - orderer.example.com:7050
+
+    - &DoE
+        Name: DoEMSP
+        ID: DoEMSP
+        MSPDir: organizations/peerOrganizations/doe.example.com/msp
+        Policies:
+            Readers:
+                Type: Signature
+                Rule: "OR('DoEMSP.admin', 'DoEMSP.peer', 'DoEMSP.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('DoEMSP.admin', 'DoEMSP.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('DoEMSP.admin')"
+            Endorsement:
+                Type: Signature
+                Rule: "OR('DoEMSP.peer')"
+        AnchorPeers:
+            - Host: peer0.doe.example.com
+              Port: 7051
+
+    - &DoGE
+        Name: DoGEMSP
+        ID: DoGEMSP
+        MSPDir: organizations/peerOrganizations/doge.example.com/msp
+        Policies:
+            Readers:
+                Type: Signature
+                Rule: "OR('DoGEMSP.admin', 'DoGEMSP.peer', 'DoGEMSP.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('DoGEMSP.admin', 'DoGEMSP.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('DoGEMSP.admin')"
+            Endorsement:
+                Type: Signature
+                Rule: "OR('DoGEMSP.peer')"
+        AnchorPeers:
+            - Host: peer0.doge.example.com
+              Port: 9051
+
+Capabilities:
+    Channel: &ChannelCapabilities
+        V2_0: true
+    Orderer: &OrdererCapabilities
+        V2_0: true
+    Application: &ApplicationCapabilities
+        V2_0: true
+
+Application: &ApplicationDefaults
+    Organizations:
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
+        LifecycleEndorsement:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Endorsement"
+        Endorsement:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Endorsement"
+    Capabilities:
+        <<: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+    OrdererType: etcdraft
+    Addresses:
+        - orderer.example.com:7050
+    BatchTimeout: 2s
+    BatchSize:
+        MaxMessageCount: 10
+        AbsoluteMaxBytes: 99 MB
+        PreferredMaxBytes: 512 KB
+    Organizations:
+    EtcdRaft:
+        Consenters:
+            - Host: orderer.example.com
+              Port: 7050
+              ClientTLSCert: organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+              ServerTLSCert: organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
+        BlockValidation:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+    Capabilities:
+        <<: *OrdererCapabilities
+
+Channel: &ChannelDefaults
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
+    Capabilities:
+        <<: *ChannelCapabilities
+
+Profiles:
+    TwoOrgsOrdererGenesis:
+        <<: *ChannelDefaults
+        Orderer:
+            <<: *OrdererDefaults
+            Organizations:
+                - *OrdererOrg
+        Consortiums:
+            WhistleblowerConsortium:
+                Organizations:
+                    - *DoE
+                    - *DoGE
+
+    TwoOrgsChannel:
+        Consortium: WhistleblowerConsortium
+        <<: *ChannelDefaults
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+                - *DoE
+                - *DoGE
+            Capabilities:
+                <<: *ApplicationCapabilities
